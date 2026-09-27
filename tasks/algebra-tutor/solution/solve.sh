@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-python3 - <<'PY'
+uv run --no-project --offline --python /usr/local/bin/python3 - <<'PY'
 import json
 from fractions import Fraction
 from pathlib import Path

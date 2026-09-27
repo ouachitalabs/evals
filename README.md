@@ -1,102 +1,101 @@
 # Evaluate the whole feature
 
-This is the companion exercise for John McCrary's **AI in the Rock** talk. One
+A companion exercise for John McCrary's **AI in the Rock** talk. One
 [Harbor task](tasks/algebra-tutor/) asks an AI tutor to respond to a student's
-mistake in `3(x - 2) = 12`. Its output is a student-facing explanation plus a
-structured final answer. The two parts are graded separately:
+mistake in `3(x - 2) = 12`. Harbor runs the agent and a separate verifier, then
+reports factual correctness, teaching quality, and an overall reward.
 
-| Dimension | Check | Meaning |
+| Reward | Source | Meaning |
 | --- | --- | --- |
-| Math correctness | Deterministic | The JSON answer and the reply's explicit `x = ...` both solve the original equation. |
-| Teaching quality | Optional OpenRouter LLM judge | A 0–4 rubric scores error diagnosis, reasoning, clarity, and a useful self-check. |
-| Overall live reward | `correctness × teaching_score / 4` | A fluent but wrong reply scores zero. |
+| `correctness` | [Programmatic Rewardkit criterion](tasks/algebra-tutor/tests/shared_math.py) | The structured answer and the reply's explicit `x = ...` both solve the original equation. |
+| `teaching_quality` | [Rewardkit judge rubric](tasks/algebra-tutor/tests/live/teaching_quality/judge.toml) | DeepSeek V4.1 Flash checks error diagnosis, reasoning, clarity, and a self-check. |
+| `reward` | [Rewardkit aggregation](tasks/algebra-tutor/tests/live/reward.toml) | Live success requires a weighted score of at least 0.75. Because a wrong answer can reach at most 0.5, correctness gates success. Offline reward equals correctness. |
 
-The offline Harbor reward is **correctness only**. Its `teaching_score` is
-unjudged, not zero. See the transparent [grader](tasks/algebra-tutor/tests/grade.py)
-and [rubric](tasks/algebra-tutor/tests/rubric.md).
+The task layout follows [Terminal-Bench](https://github.com/harbor-framework/terminal-bench):
+`task.toml`, `instruction.md`, `environment/`, `tests/`, and `solution/`.
+Harbor collects `/app/response.json`, starts the verifier container, runs
+[`tests/test.sh`](tasks/algebra-tutor/tests/test.sh), and reads Rewardkit's
+`/logs/verifier/reward.json`. The teaching rubric is available only in the
+verifier container. The agent container has no network access.
 
-## Run without an API key
-
-Requires Python 3.11 or newer. From this repository's root:
-
-```sh
-python3 tasks/algebra-tutor/tests/grade.py --response examples/good.json
-python3 tasks/algebra-tutor/tests/grade.py --response examples/correct-but-poor-teaching.json
-python3 tasks/algebra-tutor/tests/grade.py --response examples/fluent-but-wrong.json
-python3 tasks/algebra-tutor/tests/grade.py --response examples/metadata-claim-only.json
-```
-
-The first two pass math correctness, even though one is a poor lesson. The
-fluent wrong answer fails, as does a reply that claims `x = 5` while its JSON
-metadata claims 6. These contrasts show why one score is not enough.
-
-## Run the Harbor task
+## Run the task offline
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and start
-Docker. From the repository root:
+Docker. From this repository's root:
 
 ```sh
-uv tool install harbor==0.23.0
-harbor run --path tasks/algebra-tutor --agent oracle --artifact /app/response.json
+uvx --from harbor==0.23.0 harbor run --yes --path tasks/algebra-tutor --agent oracle
 ```
 
-The oracle creates a worked tutor response, then Harbor executes the verifier.
-It should earn `reward=1.0` and `correctness=1.0`. Harbor writes detailed
-`score.json` and `reward.json` in the job's trial verifier logs. To evaluate your
-own AI agent instead, select an [agent supported by Harbor](https://harborframework.com/docs)
-and its model, for example:
+The oracle is the reference solution. The expected Harbor rewards are
+`correctness=1.0` and `reward=1.0`. No API key is needed. To evaluate another
+agent, replace `oracle` and add its model and authentication as required by
+Harbor:
 
 ```sh
-harbor run --path tasks/algebra-tutor --agent codex --model YOUR_MODEL --artifact /app/response.json
+uvx --from harbor==0.23.0 harbor run --yes --path tasks/algebra-tutor --agent codex --model YOUR_MODEL
 ```
 
-Agent authentication and model selection are separate from the grader. The
-task's Docker container has no network access, and the offline verifier needs
-no credential.
+Harbor writes the response under `jobs/<job>/<trial>/artifacts/app/response.json`
+and scores under `verifier/reward.json` and `verifier/reward-details.json`. Run
+`uvx --from harbor==0.23.0 harbor view jobs` to inspect the trial.
 
-## Add the live teaching judge
+## Run with the live teaching judge
 
-Set `OPENROUTER_API_KEY` in your shell environment using your own secret
-manager. Never put it in `task.toml`, a command argument, or a committed file.
-Then run the same grader on a local response:
+For a local demo, put a single `OPENROUTER_API_KEY=...` assignment in
+`~/.secrets` and run:
 
 ```sh
-python3 tasks/algebra-tutor/tests/grade.py --response examples/good.json --live
-python3 tasks/algebra-tutor/tests/grade.py --response examples/correct-but-poor-teaching.json --live
-python3 tasks/algebra-tutor/tests/grade.py --response examples/fluent-but-wrong.json --live
+uv run python scripts/run_live.py
 ```
 
-The default judge is `openai/gpt-4.1-nano` on OpenRouter. Override it with
-`--model SLUG`. Each command makes one small request with a 180-token response
-cap. The grader requests structured JSON, validates the returned 0–4 integer,
-and fails rather than silently substituting a score if the service is
-unavailable. It sends the student reply and rubric to OpenRouter, so use only
-data you are allowed to share. The model's reasoning and scores may vary.
+The small launcher reads the key privately and starts **Harbor** with its
+Terminus-2 agent and DeepSeek V4.1 Flash model. The same model grades teaching
+quality through Rewardkit. Harbor resolves the key into the verifier's
+environment at run time; the
+task config retains only an environment-variable template. The key is not
+placed in the agent container, image, command arguments, or reward files. The
+verifier has internet access to call OpenRouter. The default agent run allows
+up to eight turns to keep a demo bounded. To use another agent, pass its
+Harbor arguments through the launcher:
 
-For a Harbor-generated response, the `--artifact` option downloads the response
-into the trial's `artifacts` directory. Pass that file to the grader with
-`--response`. The live call runs on the host so the task environment remains
-offline and the judge credential never enters the container.
+```sh
+uv run python scripts/run_live.py --agent codex --model YOUR_MODEL
+```
 
-## What this example does and does not measure
+If your key is already exported by a secret manager, run Harbor directly:
 
-The math check is unusually crisp: the original equation has a known answer.
-It still only reads the structured answer and one explicit conclusion in the
-reply. A misleading explanation can pass that check. The rubric attempts to
-measure explanation quality, but its score is a **proxy**, not evidence that a
-student learned. A teacher or student outcome is the stronger signal. Before
-using the judge to compare models, collect real tutor interactions with consent,
-have teachers label a small sample, compare judge scores to those labels, and
-repeat judgments to see how stable they are. Keep examples of disagreements.
+```sh
+EVAL_JUDGE_MODE=live uvx --from harbor==0.23.0 harbor run --yes --path tasks/algebra-tutor --agent oracle
+```
 
-The pattern generalizes: capture real feature traces, check the parts with known
-truth (including tools and state changes), then use a calibrated rubric for
-outcomes that need human judgment. For a refund assistant, verify the database
-refund state before scoring how helpful the message sounds. For code generation,
-tests can check behavior while a separate review checks quality and security.
+The model is [DeepSeek V4.1 Flash](https://openrouter.ai/deepseek/deepseek-v4.1-flash)
+through OpenRouter. Rewardkit sends the response and the four binary criteria
+to the judge in one call and records criterion scores and reasoning in
+`reward-details.json`. A judge rating is a **proxy for teaching quality**, not
+proof that a student learned. Using the same model to answer and judge is
+convenient for this demo but warrants independent teacher calibration. The
+reply and rubric leave the verifier for OpenRouter, so use only data you may
+share.
+
+## Inspect the grader's limits
+
+The four [example responses](examples/) show a good lesson, a correct answer
+with poor teaching, a fluent wrong answer, and a reply whose prose contradicts
+its structured answer. The correctness check rejects the latter two. The live
+rubric can distinguish the first two.
+
+The deterministic check is intentionally narrow: it reads the structured
+answer and one explicit conclusion in the reply. A misleading explanation can
+still pass that check. Before using live scores to compare models, collect real
+tutor interactions with consent, have teachers label a small sample, compare
+the judge's scores to those labels, and repeat judgments to measure stability.
+Keep examples where the judge and teachers disagree.
 
 To adapt this task, replace the scenario in
 [`instruction.md`](tasks/algebra-tutor/instruction.md), update the independent
-truth check in [`grade.py`](tasks/algebra-tutor/tests/grade.py), replace the
-teaching rubric, and write contrasting examples like these four. Keep the
-dimensions visible and ensure that a failed factual check gates overall success.
+truth check in [`shared_math.py`](tasks/algebra-tutor/tests/shared_math.py), and
+revise the judge criteria and examples. For a refund assistant, verify the
+database refund state before scoring the helpfulness of its message. For code
+generation, check behavior with tests and review quality and security
+separately.

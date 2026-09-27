@@ -1,4 +1,9 @@
-version = "1.0"
+schema_version = "1.0"
+artifacts = ["/app/response.json"]
+
+[task]
+name = "ouachitalabs/algebra-tutor"
+description = "Explain and correct one student's algebra mistake."
 
 [metadata]
 category = "education"
@@ -8,8 +13,13 @@ tags = ["tutoring", "deterministic-grader", "llm-judge"]
 [agent]
 timeout_sec = 180.0
 
-[verifier]
-timeout_sec = 60.0
-
 [environment]
-allow_internet = false
+network_mode = "no-network"
+
+[verifier]
+timeout_sec = 120.0
+environment_mode = "separate"
+env = { JUDGE_MODE = "${EVAL_JUDGE_MODE:-offline}", OPENROUTER_API_KEY = "${OPENROUTER_API_KEY:-}" }
+
+[verifier.environment]
+network_mode = "public"
