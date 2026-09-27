@@ -1,0 +1,15 @@
+version = "1.0"
+
+[metadata]
+category = "education"
+difficulty = "easy"
+tags = ["tutoring", "deterministic-grader", "llm-judge"]
+
+[agent]
+timeout_sec = 180.0
+
+[verifier]
+timeout_sec = 60.0
+
+[environment]
+allow_internet = false
