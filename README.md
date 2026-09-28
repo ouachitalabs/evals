@@ -22,7 +22,7 @@ Open [the Easy Style task](tasks/invoice-easy-style/). It follows the [Harbor ta
 
 ```text
 invoice-easy-style/
-├── instruction.md              # Prompt: return seven JSON string fields
+├── instruction.md              # Prompt: seven JSON string fields, no fences
 ├── task.toml                   # Timeouts, containers, copied artifacts
 ├── environment/
 │   ├── Dockerfile
@@ -34,16 +34,17 @@ invoice-easy-style/
     ├── Dockerfile              # Separate verifier container
     ├── test.sh                 # Prepares summary text, runs Rewardkit
     ├── expected.json           # Six labeled facts + example summary
+    ├── reward.toml             # Blends the three metrics into Harbor's `reward`
     ├── json_validity/check.py  # JSON shape and field formats
     ├── field_accuracy/check.py # Six factual comparisons
     └── summary/judge.toml      # LLM rubric: useful description, no inventions
 ```
 
-The shared [runner](src/evals/invoice_agent.py) sends the prompt and image in **one request**, with reasoning enabled. It saves assistant text unchanged to `/app/response.json`, even if that text is malformed JSON, fenced Markdown, or empty. There is no JSON mode, answer parsing, repair, or automatic retry. The SDK unwraps the API envelope; only the verifier parses the answer itself.
+The shared [runner](src/evals/invoice_agent.py) sends the prompt and image in **one request**, with reasoning turned off. Reasoning dominated the runtime without changing the answer: with it on, one call emitted 1.7k–6.8k tokens of chain-of-thought (96% of all output tokens) and took 21s–189s depending on which OpenRouter provider was routed to; off, the same answer is ~95 tokens in 1–5 seconds. The runner saves assistant text unchanged to `/app/response.json`, even if that text is malformed JSON, fenced Markdown, or empty. There is no JSON mode, answer parsing, repair, or automatic retry. The SDK unwraps the API envelope; only the verifier parses the answer itself.
 
 Harbor copies the image and answer into the verifier container. Python grades format and facts. The summary judge sees **only the image and extracted summary**, not the other fields or expected answer. Both rubric questions must pass. The reference summary is an example, not an exact-match target.
 
-## Read three scores
+## Read the scores
 
 Run `uv run harbor view jobs` and open a trial.
 
@@ -52,8 +53,11 @@ Run `uv run harbor view jobs` and open a trial.
 | `json_validity` | 1 if the answer has exactly seven nonempty strings with the required date, tax-ID, and money formats; otherwise 0. | Whether the facts are correct. |
 | `field_accuracy` | Fraction of the six factual fields that match. | Whether the whole output meets the schema or the summary is true. |
 | `summary` | 1 if both LLM rubric questions pass; otherwise 0. | A guarantee of correctness; inspect the judge's reasons. |
+| `reward` | Weighted blend Harbor reports as the headline: 0.7·`field_accuracy` + 0.1·`json_validity` + 0.2·`summary`. | Nothing by itself; read the three metrics behind it. |
 
-There is no blended overall score. Invalid JSON gets zero factual credit. A parseable answer can earn factual credit while failing the schema.
+Harbor reads a trial's headline reward from the key literally named `reward`. Rewardkit exports only the three metric names, so `tests/reward.toml` declares `[[reward]]` to add the blend; without it the viewer's **Avg Reward** column reads `0.00` even when every trial scored well. Invalid JSON gets zero factual credit. A parseable answer can earn factual credit while failing the schema.
+
+The instruction forbids code fences on purpose. Asked for JSON, a model that is not reasoning tends to wrap the answer in ```json, which is well-formed Markdown but not a JSON document, so `json_validity` scores it 0. Judge validity on the text a model actually returns, not on what it presumably meant.
 
 **Matching policy:** seller names must match completely after ignoring case, accents, and repeated/outer whitespace. Invoice numbers ignore case and repeated/outer whitespace, but preserve punctuation. Tax IDs and dates match exactly. Amounts require two decimal places and the correct numeric value. Unlisted seller aliases or legal-name variants can fail; review those failures against the image before expanding accepted answers.
 
@@ -62,7 +66,7 @@ In each trial's logs:
 - `agent/response.json`: unchanged assistant text being graded.
 - `agent/api-response.json`: complete API response body, including returned reasoning, finish reason, and usage. Available for model runs, not oracle runs.
 - `agent/trajectory.json`: prompt, image attachment, and answer in Harbor's viewer.
-- `verifier/reward.json`: the three scores.
+- `verifier/reward.json`: the three metric scores plus the blended `reward`.
 - `verifier/reward-details.json`: individual checks and judge explanations.
 
 ## A concrete failure

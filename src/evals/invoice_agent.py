@@ -48,7 +48,13 @@ class InvoiceExtractorAgent(BaseAgent):
         ) as client:
             raw_result = await client.chat.completions.with_raw_response.create(
                 model=model,
-                extra_body={"reasoning": {"enabled": True}},
+                # Reasoning is off on purpose. It dominated the run: with it on,
+                # these calls emitted 1.7k-6.8k tokens of chain-of-thought (96% of
+                # all output tokens) and took 21s-189s per trial depending on which
+                # OpenRouter provider was picked. Off, the same answer is ~95
+                # tokens in 1-5s. The instruction forbids code fences, so the bare
+                # JSON still passes json_validity.
+                extra_body={"reasoning": {"enabled": False}},
                 messages=[
                     {
                         "role": "user",

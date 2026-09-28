@@ -1,0 +1,9 @@
+# Harbor reads a trial's headline reward from the key literally named "reward"
+# in /logs/verifier/reward.json. Rewardkit's folders export field_accuracy,
+# json_validity and summary, so without this aggregation Harbor finds no
+# "reward" key and the viewer's Avg Reward column reads 0.00.
+# Field accuracy dominates; validity and judge quality are smaller terms.
+[[reward]]
+name = "reward"
+aggregation = "weighted-mean"
+weights = { field_accuracy = 0.7, json_validity = 0.1, summary = 0.2 }
