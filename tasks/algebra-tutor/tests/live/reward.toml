@@ -1,7 +1,0 @@
-# With equal weights, a mathematically wrong reply can score at most 0.5.
-# The 0.75 threshold makes correctness a necessary condition for success.
-[[reward]]
-name = "reward"
-aggregation = "threshold"
-threshold = 0.75
-weights = { correctness = 1.0, teaching_quality = 1.0 }

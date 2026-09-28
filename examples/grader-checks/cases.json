@@ -1,0 +1,104 @@
+{
+  "malformed-json": {
+    "task": "invoice-easy-style",
+    "response": "examples/grader-checks/malformed-json.json",
+    "expected": {
+      "json_validity": 0,
+      "field_accuracy": 0,
+      "summary": 0
+    },
+    "failed_fields": [
+      "seller_name",
+      "seller_tax_id",
+      "invoice_date",
+      "invoice_number",
+      "total",
+      "tax_amount"
+    ]
+  },
+  "empty-answer": {
+    "task": "invoice-easy-style",
+    "response": "examples/grader-checks/empty-answer.json",
+    "expected": {
+      "json_validity": 0,
+      "field_accuracy": 0,
+      "summary": 0
+    },
+    "failed_fields": [
+      "seller_name",
+      "seller_tax_id",
+      "invoice_date",
+      "invoice_number",
+      "total",
+      "tax_amount"
+    ]
+  },
+  "wrong-total": {
+    "task": "invoice-easy-style",
+    "response": "examples/grader-checks/wrong-total.json",
+    "expected": {
+      "json_validity": 1,
+      "field_accuracy": 0.8333333333333334,
+      "summary": 1
+    },
+    "failed_fields": [
+      "total"
+    ]
+  },
+  "seller-suffix": {
+    "task": "invoice-easy-style",
+    "response": "examples/grader-checks/seller-suffix.json",
+    "expected": {
+      "json_validity": 1,
+      "field_accuracy": 0.8333333333333334,
+      "summary": 1
+    },
+    "failed_fields": [
+      "seller_name"
+    ]
+  },
+  "invoice-punctuation": {
+    "task": "invoice-easy-style",
+    "response": "examples/grader-checks/invoice-punctuation.json",
+    "expected": {
+      "json_validity": 1,
+      "field_accuracy": 0.8333333333333334,
+      "summary": 1
+    },
+    "failed_fields": [
+      "invoice_number"
+    ]
+  },
+  "invented-summary": {
+    "task": "invoice-easy-style",
+    "response": "examples/grader-checks/invented-summary.json",
+    "expected": {
+      "json_validity": 1,
+      "field_accuracy": 1,
+      "summary": 0
+    },
+    "failed_fields": []
+  },
+  "buyer-tax-id": {
+    "task": "invoice-ikea",
+    "response": "examples/grader-checks/buyer-tax-id.json",
+    "expected": {
+      "json_validity": 1,
+      "field_accuracy": 0.8333333333333334,
+      "summary": 1
+    },
+    "failed_fields": [
+      "seller_tax_id"
+    ]
+  },
+  "accepted-formatting": {
+    "task": "invoice-easy-style",
+    "response": "examples/grader-checks/accepted-formatting.json",
+    "expected": {
+      "json_validity": 1,
+      "field_accuracy": 1,
+      "summary": 1
+    },
+    "failed_fields": []
+  }
+}

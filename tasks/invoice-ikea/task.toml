@@ -1,0 +1,27 @@
+schema_version = "1.0"
+artifacts = ["/app/invoice.jpg", "/app/response.json"]
+
+[task]
+name = "ouachitalabs/invoice-ikea"
+description = "IKEA: one duvet cover."
+
+[metadata]
+category = "document-extraction"
+difficulty = "easy"
+tags = ["invoice", "image-input", "structured-output", "llm-judge"]
+source_dataset = "Francisco-Cruz/InvoicesReceiptsPT"
+source_id = "20210428_140916"
+
+[agent]
+timeout_sec = 180.0
+
+[environment]
+network_mode = "no-network"
+
+[verifier]
+timeout_sec = 180.0
+environment_mode = "separate"
+env = { OPENROUTER_API_KEY = "${OPENROUTER_API_KEY}" }
+
+[verifier.environment]
+network_mode = "public"

@@ -1,7 +1,15 @@
 [project]
 name = "evals"
 version = "0.1.0"
-description = "A small Harbor eval for an AI algebra tutor"
+description = "Five small Harbor evals for invoice image extraction"
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = []
+requires-python = ">=3.12"
+dependencies = [
+    "harbor==0.23.0",
+    "harbor-rewardkit==0.2.1",
+    "openai==2.54.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
